@@ -86,6 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // --- Hero: interactive dot grid (canvas) ---
+  initHeroDotsCanvas();
+
   // --- Auth state: update header buttons ---
   updateAuthState();
 });
@@ -110,4 +113,186 @@ function updateAuthState() {
     loginBtn.textContent = 'Mi panel';
     loginBtn.href = 'dashboard.html';
   }
+}
+
+/**
+ * Rejilla de puntos blancos en el hero que reaccionan al cursor (tamaño / opacidad).
+ */
+/**
+ * Rejilla de puntos blancos en el hero que reaccionan al cursor (tamaño / opacidad).
+ * Implementado con un enfoque de "sensación premium": interpolación suave,
+ * soporte de alta densidad de píxeles y transiciones elegantes.
+ */
+function initHeroDotsCanvas() {
+  const hero = document.getElementById('inicio');
+  const canvas = document.getElementById('heroDotsCanvas');
+  if (!hero || !canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // --- Configuración ---
+  const config = {
+    spacing: 24,       // Espacio entre puntos en px
+    baseRadius: 1.2,   // Radio normal del punto
+    maxRadius: 5.5,    // Radio máximo con el mouse cerca
+    baseAlpha: 0.1,    // Opacidad normal
+    maxAlpha: 0.7,     // Opacidad máxima con el mouse cerca
+    influence: 160,    // Radio de influencia del mouse
+    ease: 0.12,        // Factor de suavizado (lerp)
+    mouseEase: 0.15    // Suavizado del movimiento del mouse virtual
+  };
+
+  let dots = [];
+  let w, h, dpr;
+  let mx = -1000, my = -1000; // Mouse real
+  let vmx = -1000, vmy = -1000; // Mouse virtual (con inercia)
+  let rafId = null;
+  let isMouseOver = false;
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  class Dot {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.r = config.baseRadius;
+      this.a = config.baseAlpha;
+      this.targetR = config.baseRadius;
+      this.targetA = config.baseAlpha;
+    }
+
+    update(mouseActive) {
+      if (mouseActive) {
+        const dx = this.x - vmx;
+        const dy = this.y - vmy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < config.influence) {
+          const t = 1 - dist / config.influence;
+          const easeT = t * t * (3 - 2 * t); // Smoothstep para una transición más natural
+          this.targetR = config.baseRadius + (config.maxRadius - config.baseRadius) * easeT;
+          this.targetA = config.baseAlpha + (config.maxAlpha - config.baseAlpha) * easeT;
+        } else {
+          this.targetR = config.baseRadius;
+          this.targetA = config.baseAlpha;
+        }
+      } else {
+        this.targetR = config.baseRadius;
+        this.targetA = config.baseAlpha;
+      }
+
+      // Animación suave hacia el target
+      this.r += (this.targetR - this.r) * config.ease;
+      this.a += (this.targetA - this.a) * config.ease;
+    }
+
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${this.a.toFixed(3)})`;
+      ctx.fill();
+    }
+  }
+
+  function initDots() {
+    dots = [];
+    const step = config.spacing;
+    // Añadimos un pequeño margen para cubrir bordes al redimensionar
+    for (let x = step * 0.5; x < w; x += step) {
+      for (let y = step * 0.5; y < h; y += step) {
+        dots.push(new Dot(x, y));
+      }
+    }
+  }
+
+  function sizeCanvas() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = hero.getBoundingClientRect();
+    w = rect.width;
+    h = rect.height;
+    
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    
+    ctx.scale(dpr, dpr);
+    initDots();
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, w, h);
+
+    // Si el mouse no está sobre el hero, alejamos el mouse virtual suavemente
+    // para que la transición de salida sea ultra-fluida.
+    if (!isMouseOver) {
+      vmx += (-1000 - vmx) * config.mouseEase;
+      vmy += (-1000 - vmy) * config.mouseEase;
+    } else {
+      vmx += (mx - vmx) * config.mouseEase;
+      vmy += (my - vmy) * config.mouseEase;
+    }
+
+    const mouseBusy = isMouseOver || (Math.abs(vmx - (-1000)) > 1);
+
+    dots.forEach(dot => {
+      dot.update(mouseBusy);
+      dot.draw();
+    });
+
+    rafId = requestAnimationFrame(render);
+  }
+
+  // --- Eventos ---
+  function onPointerMove(e) {
+    const rect = hero.getBoundingClientRect();
+    mx = e.clientX - rect.left;
+    my = e.clientY - rect.top;
+    isMouseOver = true;
+  }
+
+  function onPointerLeave() {
+    isMouseOver = false;
+  }
+
+  function handleResize() {
+    sizeCanvas();
+  }
+
+  // Soporte para "Reduced Motion"
+  function checkMotionPreference() {
+    if (reducedMotion.matches) {
+      if (rafId) cancelAnimationFrame(rafId);
+      // Dibujamos el estado base una vez
+      ctx.clearRect(0, 0, w, h);
+      dots.forEach(dot => {
+        dot.targetR = config.baseRadius;
+        dot.targetA = config.baseAlpha;
+        dot.r = config.baseRadius;
+        dot.a = config.baseAlpha;
+        dot.draw();
+      });
+    } else {
+      if (!rafId) render();
+    }
+  }
+
+  hero.addEventListener('mousemove', onPointerMove, { passive: true });
+  hero.addEventListener('mouseleave', onPointerLeave, { passive: true });
+  hero.addEventListener('touchstart', (e) => {
+    isMouseOver = true;
+    onPointerMove(e.touches[0]);
+  }, { passive: true });
+  hero.addEventListener('touchmove', (e) => onPointerMove(e.touches[0]), { passive: true });
+  hero.addEventListener('touchend', onPointerLeave, { passive: true });
+
+  const ro = new ResizeObserver(handleResize);
+  ro.observe(hero);
+
+  reducedMotion.addEventListener('change', checkMotionPreference);
+
+  // Inicialización sincrónica
+  sizeCanvas();
+  checkMotionPreference();
 }
