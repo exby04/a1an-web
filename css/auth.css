@@ -105,6 +105,10 @@
   gap: var(--spacing-4);
 }
 
+.auth-row .form-group {
+  min-width: 0;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;
@@ -350,9 +354,12 @@
 
 .password-toggle {
   position: relative;
+  display: block;
+  width: 100%;
 }
 
 .password-toggle input {
+  width: 100%;
   padding-right: 3rem;
 }
 

@@ -481,24 +481,29 @@ p {
   font-size: var(--font-size-sm);
   font-weight: 500;
   margin-bottom: var(--spacing-6);
+  letter-spacing: 0.03em;
 }
 
 .hero h1 {
   color: var(--color-white);
   font-size: var(--font-size-5xl);
   margin-bottom: var(--spacing-6);
-  line-height: 1.1;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  word-spacing: 0.05em;
 }
 
 .hero h1 .highlight {
   color: var(--color-accent);
+  letter-spacing: 0.02em;
 }
 
 .hero-description {
   color: rgba(255, 255, 255, 0.8);
   font-size: var(--font-size-lg);
   margin-bottom: var(--spacing-8);
-  line-height: 1.7;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
 }
 
 .hero-buttons {
@@ -866,6 +871,7 @@ p {
 .form-group input,
 .form-group textarea,
 .form-group select {
+  width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

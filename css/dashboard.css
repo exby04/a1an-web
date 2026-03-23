@@ -127,14 +127,15 @@
 .sidebar-user {
   display: flex;
   align-items: center;
-  gap: var(--spacing-3);
-  padding: var(--spacing-4) var(--spacing-6);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  gap: var(--spacing-4);
+  padding: var(--spacing-5) var(--spacing-6);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: auto;
 }
 
 .sidebar-avatar {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-accent), var(--color-secondary));
   display: flex;
@@ -148,6 +149,7 @@
 .sidebar-user-info {
   flex: 1;
   min-width: 0;
+  line-height: 1.4;
 }
 
 .sidebar-user-name {
@@ -156,10 +158,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 2px;
 }
 
 .sidebar-user-email {
-  font-size: var(--font-size-xs);
+  font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.45);
   white-space: nowrap;
   overflow: hidden;
@@ -167,19 +170,23 @@
 }
 
 .sidebar-logout {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.35);
   padding: var(--spacing-2);
-  transition: color var(--transition-fast);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .sidebar-logout:hover {
   color: var(--color-danger);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-logout svg {
   width: 18px;
   height: 18px;
+  display: block;
 }
 
 /* --- Main Content --- */
