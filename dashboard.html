@@ -114,6 +114,40 @@
 
         <!-- Widgets -->
         <div class="widgets-grid">
+          <!-- Robot Camera Feed -->
+          <div class="camera-widget grid-camera">
+            <div class="camera-widget-header">
+              <span class="widget-title">Cámara en vivo</span>
+              <div class="badge badge-success">Live</div>
+            </div>
+            <div class="video-container">
+              <div class="video-feed-sim"></div>
+              <div class="video-noise"></div>
+              <div class="video-scanline"></div>
+              <div class="video-overlay">
+                <div class="overlay-top">
+                  <div class="rec-indicator"><span class="rec-dot"></span></div>
+                  <div class="camera-id" style="font-size: 0.5rem; padding: 2px 6px;">CAM-01</div>
+                </div>
+                <div class="overlay-bottom">
+                  <div class="timestamp" id="cameraTimestamp" style="font-size: 0.5rem; padding: 2px 6px;">2026-03-23 17:50:20</div>
+                </div>
+              </div>
+            </div>
+            <div class="camera-actions" style="padding: var(--spacing-3) var(--spacing-4);">
+              <button class="btn btn-sm btn-outline-dark" id="btnCapture" style="padding: 4px 8px; font-size: 0.65rem;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Foto
+              </button>
+              <button class="btn btn-sm btn-outline-dark" id="btnRecord" style="padding: 4px 8px; font-size: 0.65rem;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                REC
+              </button>
+              <button class="btn btn-sm btn-primary" style="margin-left: auto; padding: 4px 8px; font-size: 0.65rem;" onclick="location.href='robot.html'">
+                Ver más
+              </button>
+            </div>
+          </div>
           <div class="widget">
             <div class="widget-header">
               <span class="widget-title">Estado del robot</span>
@@ -185,6 +219,7 @@
             <div class="widget-label"><a href="notifications.html" style="color: var(--color-accent); font-weight: 500;">Ver notificaciones</a></div>
           </div>
         </div>
+
 
         <!-- Weekly Activity Chart -->
         <div class="widget" style="margin-bottom: var(--spacing-8);">

@@ -12,7 +12,54 @@ document.addEventListener('DOMContentLoaded', () => {
   highlightActiveNav();
   initRobotLinking(session);
   initWeeklyChart();
+  initCameraWidget();
 });
+
+// --- Camera Widget Logic ---
+function initCameraWidget() {
+  const ts = document.getElementById('cameraTimestamp');
+  const btnCapture = document.getElementById('btnCapture');
+  const btnRecord = document.getElementById('btnRecord');
+
+  if (ts) {
+    // Update timestamp every second
+    const updateTS = () => {
+      const now = new Date();
+      ts.textContent = now.getFullYear() + '-' + 
+                      String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                      String(now.getDate()).padStart(2, '0') + ' ' + 
+                      String(now.getHours()).padStart(2, '0') + ':' + 
+                      String(now.getMinutes()).padStart(2, '0') + ':' + 
+                      String(now.getSeconds()).padStart(2, '0');
+    };
+    updateTS();
+    setInterval(updateTS, 1000);
+  }
+
+  if (btnCapture) {
+    btnCapture.addEventListener('click', () => {
+      showToast('Captura guardada en la galería.', 'success');
+    });
+  }
+
+  if (btnRecord) {
+    let recording = false;
+    btnRecord.addEventListener('click', () => {
+      recording = !recording;
+      if (recording) {
+        btnRecord.classList.add('btn-danger');
+        btnRecord.classList.remove('btn-outline-dark');
+        btnRecord.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"/></svg> Detener';
+        showToast('Grabando vídeo...', '');
+      } else {
+        btnRecord.classList.remove('btn-danger');
+        btnRecord.classList.add('btn-outline-dark');
+        btnRecord.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg> Grabar';
+        showToast('Vídeo guardado correctamente.', 'success');
+      }
+    });
+  }
+}
 
 // --- Session Guard ---
 function checkSession() {

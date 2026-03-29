@@ -334,6 +334,7 @@
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--spacing-6);
   margin-bottom: var(--spacing-8);
+  align-items: start; /* Evita que los widgets se estiren para igualar la altura de la cámara */
 }
 
 .widget {
@@ -1235,3 +1236,165 @@
   font-size: 0.6rem;
   color: var(--color-gray);
 }
+
+/* --- Robot Camera Widget --- */
+.camera-widget {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-widget.grid-camera {
+  grid-column: span 2; /* Spans 2 columns to be more visible but smaller than before */
+}
+
+@media (max-width: 992px) {
+  .camera-widget.grid-camera {
+    grid-column: span 1;
+  }
+}
+
+.camera-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem var(--spacing-6);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  overflow: hidden;
+}
+
+.video-feed-sim {
+  width: 100%;
+  height: 100%;
+  background: url('https://images.unsplash.com/photo-1558346490-a72e53ae2d4f?auto=format&fit=crop&q=80&w=1200') center/cover;
+  opacity: 0.9;
+  filter: contrast(1.1) brightness(0.9) saturate(0.8) grayscale(0.2);
+}
+
+.video-overlay {
+  position: absolute;
+  inset: 0;
+  padding: var(--spacing-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 5;
+  color: #fff;
+  font-family: 'Courier New', Courier, monospace;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+
+.overlay-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.rec-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  background: rgba(0, 0, 0, 0.45);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(4px);
+}
+
+.rec-dot {
+  width: 10px;
+  height: 10px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #ef4444;
+  animation: camera-blink 1.2s infinite;
+}
+
+.camera-id {
+  background: rgba(0, 0, 0, 0.45);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(4px);
+}
+
+.overlay-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.timestamp {
+  background: rgba(0, 0, 0, 0.45);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(4px);
+}
+
+.fov-label {
+  background: rgba(0, 0, 0, 0.45);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(4px);
+}
+
+.video-noise {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.15) 50%), 
+              linear-gradient(90deg, rgba(255,0,0,0.03), rgba(0,255,0,0.01), rgba(0,0,255,0.03));
+  background-size: 100% 3px, 3px 100%;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+.video-scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 20%;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.05), transparent);
+  z-index: 3;
+  pointer-events: none;
+  animation: camera-scanline 10s linear infinite;
+}
+
+.camera-actions {
+  padding: var(--spacing-4) var(--spacing-6);
+  display: flex;
+  gap: var(--spacing-3);
+  background: var(--color-white);
+  border-top: 1px solid var(--color-border);
+}
+
+@keyframes camera-blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.9); }
+}
+
+@keyframes camera-scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(500%); }
+}
+
+@media (max-width: 768px) {
+  .video-container {
+    aspect-ratio: 4 / 3;
+  }
+}
+
