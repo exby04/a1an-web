@@ -3,39 +3,37 @@
    Dashboard & Private Area JS
    ============================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
-  const session = checkSession();
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await checkSession();
   if (!session) return;
 
-  populateUserInfo(session);
+  const user = session.user;
+  populateUserInfo(user);
   initSidebar();
   highlightActiveNav();
-  initRobotLinking(session);
-  initPatientWelcome(session);
+  initRobotLinking(user);
+  initPatientWelcome(user);
   initCameraTimestamp();
   initWeeklyPlan();
 });
 
 // --- Patient Welcome ---
-function initPatientWelcome(session) {
-  const firstName = session.firstName || session.name || 'Usuario';
-  const heading = document.getElementById('welcomeHeading');
-  const nameEl = document.getElementById('welcomeName');
-  const dateEl = document.getElementById('welcomeDate');
-
-  if (nameEl) nameEl.textContent = firstName;
+function initPatientWelcome(user) {
+  const meta      = user.user_metadata || {};
+  const firstName = meta.nombre || user.email.split('@')[0];
+  const heading   = document.getElementById('welcomeHeading');
+  const dateEl    = document.getElementById('welcomeDate');
 
   if (heading) {
-    const hour = new Date().getHours();
+    const hour     = new Date().getHours();
     const greeting = hour < 12 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
     heading.innerHTML = `${greeting}, <span id="welcomeName">${firstName}</span> 👋`;
   }
 
   if (dateEl) {
-    const now = new Date();
+    const now     = new Date();
     const options = { weekday: 'long', day: 'numeric', month: 'long' };
-    const dateStr = now.toLocaleDateString('es-ES', options);
-    dateEl.textContent = `Hoy es ${dateStr}. ¡Sigue adelante con tu rehabilitación!`;
+    dateEl.textContent = `Hoy es ${now.toLocaleDateString('es-ES', options)}. ¡Sigue adelante con tu rehabilitación!`;
   }
 }
 
@@ -105,33 +103,31 @@ function initWeeklyPlan() {
 
 
 // --- Session Guard ---
-function checkSession() {
-  const session = JSON.parse(localStorage.getItem('a1an_session') || 'null');
-  if (!session || !session.loggedIn) {
-    window.location.href = 'login.html';
+async function checkSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    window.location.href = '/pages/login.html';
     return null;
   }
   return session;
 }
 
 // --- Populate user info across sidebar and topbar ---
-function populateUserInfo(session) {
-  const firstName = session.firstName || session.name || 'Usuario';
-  const lastName = session.lastName || '';
-  const fullName = (firstName + ' ' + lastName).trim();
-  const initials = (firstName[0] || '') + (lastName[0] || '');
-  const email = session.email || '';
+function populateUserInfo(user) {
+  const meta      = user.user_metadata || {};
+  const firstName = meta.nombre    || user.email.split('@')[0];
+  const lastName  = meta.apellidos || '';
+  const fullName  = (firstName + ' ' + lastName).trim();
+  const initials  = ((firstName[0] || '') + (lastName[0] || '')).toUpperCase() || 'U';
+  const email     = user.email || '';
 
-  const setInner = (id, text) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text;
-  };
+  const setInner = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
 
-  setInner('sidebarUserName', fullName);
+  setInner('sidebarUserName',  fullName);
   setInner('sidebarUserEmail', email);
-  setInner('sidebarAvatar', initials.toUpperCase() || 'U');
-  setInner('topbarUserName', firstName);
-  setInner('topbarAvatar', initials.toUpperCase() || 'U');
+  setInner('sidebarAvatar',    initials);
+  setInner('topbarUserName',   firstName);
+  setInner('topbarAvatar',     initials);
 }
 
 // --- Sidebar toggle (mobile) ---
@@ -156,31 +152,40 @@ function initSidebar() {
   }
 
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('a1an_session');
-      window.location.href = 'login.html?logout=true';
+    logoutBtn.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.href = '/pages/login.html?logout=true';
     });
   }
 }
 
 // --- Highlight active sidebar link ---
 function highlightActiveNav() {
-  const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+  const currentPath = window.location.pathname;
   document.querySelectorAll('.sidebar-link').forEach(link => {
     const href = link.getAttribute('href');
-    link.classList.toggle('active', href === currentPage);
+    link.classList.toggle('active', href === currentPath);
   });
 }
 
-// --- Robot Linking ---
-function initRobotLinking(session) {
+function initRobotLinking(user) {
   const overlay = document.getElementById('robotLinkOverlay');
   if (!overlay) return;
 
-  if (session.robotLinked) return;
+  // Comprobar si el usuario ya tiene robot vinculado en Supabase
+  supabase
+    .from('robots')
+    .select('id')
+    .eq('usuario_id', user.id)
+    .maybeSingle()
+    .then(({ data }) => {
+      if (data) return; // ya tiene robot
+      overlay.classList.add('active');
+      setupRobotLinkHandlers(overlay, user);
+    });
+}
 
-  overlay.classList.add('active');
-
+function setupRobotLinkHandlers(overlay, user) {
   // Tab switching
   overlay.querySelectorAll('.robot-link-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -193,7 +198,7 @@ function initRobotLinking(session) {
   });
 
   // Link by ID
-  const linkBtn = document.getElementById('linkRobotBtn');
+  const linkBtn    = document.getElementById('linkRobotBtn');
   const robotInput = document.getElementById('robotIdInput');
   if (linkBtn) {
     linkBtn.addEventListener('click', () => {
@@ -202,7 +207,7 @@ function initRobotLinking(session) {
         showToast('Introduce un ID de robot válido (ej: A1AN-XXXX-XXXX)', 'danger');
         return;
       }
-      completeRobotLink(robotId, overlay);
+      completeRobotLink(robotId, overlay, user);
     });
   }
 
@@ -212,29 +217,31 @@ function initRobotLinking(session) {
     qrBtn.addEventListener('click', () => {
       qrBtn.textContent = 'Escaneando...';
       qrBtn.disabled = true;
-      setTimeout(() => {
-        completeRobotLink('A1AN-7F3K-9X2P', overlay);
-      }, 1500);
+      setTimeout(() => { completeRobotLink('A1AN-7F3K-9X2P', overlay, user); }, 1500);
     });
   }
 
   // Skip
   const skipBtn = document.getElementById('skipLinkBtn');
   if (skipBtn) {
-    skipBtn.addEventListener('click', () => {
-      overlay.classList.remove('active');
-    });
+    skipBtn.addEventListener('click', () => { overlay.classList.remove('active'); });
   }
 }
 
-function completeRobotLink(robotId, overlay) {
-  const session = JSON.parse(localStorage.getItem('a1an_session') || '{}');
-  session.robotLinked = true;
-  session.robotId = robotId;
-  session.robotName = 'A1AN';
-  localStorage.setItem('a1an_session', JSON.stringify(session));
-  localStorage.setItem('a1an_robot_linked', 'true');
-  localStorage.setItem('a1an_robot_id', robotId);
+async function completeRobotLink(robotId, overlay, user) {
+  const { error } = await supabase.from('robots').insert({
+    usuario_id: user.id,
+    nombre: 'A1AN',
+    modelo: 'A1AN-v1',
+    estado: 'activo',
+    ultima_conexion: new Date().toISOString()
+  });
+
+  if (error) {
+    showToast('Error al vincular el robot. Inténtalo de nuevo.', 'danger');
+    return;
+  }
+
   overlay.classList.remove('active');
   showToast('Robot vinculado correctamente: ' + robotId, 'success');
 }

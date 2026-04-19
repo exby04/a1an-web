@@ -1,6 +1,6 @@
 /* ============================================
    Safe&Sound Robotics — A1AN Web
-   Authentication JS
+   Authentication JS — Supabase
    ============================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,90 +21,199 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('loginForm');
   if (loginForm) {
     showUrlMessage();
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      clearErrors();
-
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value.trim();
-      let valid = true;
-
-      if (!isValidEmail(email)) {
-        showFieldError('email', 'emailError');
-        valid = false;
-      }
-      if (!password) {
-        showFieldError('password', 'passwordError');
-        valid = false;
-      }
-
-      if (!valid) return;
-
-      const session = {
-        name: email.split('@')[0],
-        email: email,
-        firstName: localStorage.getItem('a1an_user_firstName') || email.split('@')[0],
-        lastName: localStorage.getItem('a1an_user_lastName') || '',
-        loggedIn: true,
-        robotLinked: localStorage.getItem('a1an_robot_linked') === 'true'
-      };
-
-      localStorage.setItem('a1an_session', JSON.stringify(session));
-      window.location.href = 'dashboard.html';
-    });
+    loginForm.addEventListener('submit', handleLogin);
   }
 
   // --- Register form ---
   const registerForm = document.getElementById('registerForm');
   if (registerForm) {
-    registerForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      clearErrors();
-
-      const firstName = document.getElementById('firstName').value.trim();
-      const lastName = document.getElementById('lastName').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      const confirmPassword = document.getElementById('confirmPassword').value;
-      let valid = true;
-
-      if (!firstName) { showFieldError('firstName', 'firstNameError'); valid = false; }
-      if (!lastName) { showFieldError('lastName', 'lastNameError'); valid = false; }
-      if (!isValidEmail(email)) { showFieldError('email', 'emailError'); valid = false; }
-      if (password.length < 6) { showFieldError('password', 'passwordError'); valid = false; }
-      if (password !== confirmPassword) { showFieldError('confirmPassword', 'confirmPasswordError'); valid = false; }
-
-      if (!valid) return;
-
-      localStorage.setItem('a1an_user_firstName', firstName);
-      localStorage.setItem('a1an_user_lastName', lastName);
-      localStorage.setItem('a1an_user_email', email);
-
-      window.location.href = 'login.html?registered=true';
-    });
+    registerForm.addEventListener('submit', handleRegister);
   }
 
   // --- Recover form ---
   const recoverForm = document.getElementById('recoverForm');
   if (recoverForm) {
-    recoverForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      clearErrors();
-
-      const email = document.getElementById('email').value.trim();
-      if (!isValidEmail(email)) {
-        showFieldError('email', 'emailError');
-        return;
+    // Detectar si el usuario llegó desde el link del email (modo reset)
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        showResetStep();
       }
-
-      showAuthMessage('Se ha enviado un enlace de recuperación a tu correo electrónico.', 'success');
-      recoverForm.reset();
     });
+    recoverForm.addEventListener('submit', handleRecover);
   }
+
+  // --- Reset password form (paso 2) ---
+  const resetForm = document.getElementById('resetForm');
+  if (resetForm) {
+    resetForm.addEventListener('submit', handleResetPassword);
+  }
+
 });
 
-// --- Helpers ---
 
+// =============================================
+// LOGIN
+// =============================================
+async function handleLogin(e) {
+  e.preventDefault();
+  clearErrors();
+
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  if (!isValidEmail(email)) { showFieldError('email', 'emailError'); return; }
+  if (!password)            { showFieldError('password', 'passwordError'); return; }
+
+  setLoading(true);
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        showAuthMessage('Correo electrónico o contraseña incorrectos.', 'error');
+      } else if (error.message.includes('Email not confirmed')) {
+        showAuthMessage('Confirma tu correo electrónico antes de iniciar sesión.', 'error');
+      } else {
+        showAuthMessage(error.message, 'error');
+      }
+      return;
+    }
+    window.location.href = '/pages/dashboard.html';
+  } catch (e) {
+    showAuthMessage('Error de conexión. Comprueba tu internet e inténtalo de nuevo.', 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+// =============================================
+// REGISTRO
+// =============================================
+async function handleRegister(e) {
+  e.preventDefault();
+  clearErrors();
+
+  const firstName       = document.getElementById('firstName').value.trim();
+  const lastName        = document.getElementById('lastName').value.trim();
+  const email           = document.getElementById('email').value.trim();
+  const password        = document.getElementById('password').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  let valid = true;
+
+  if (!firstName) { showFieldError('firstName', 'firstNameError'); valid = false; }
+  if (!lastName)  { showFieldError('lastName',  'lastNameError');  valid = false; }
+  if (!isValidEmail(email))        { showFieldError('email',           'emailError');           valid = false; }
+  if (password.length < 6)         { showFieldError('password',        'passwordError');        valid = false; }
+  if (password !== confirmPassword) { showFieldError('confirmPassword', 'confirmPasswordError'); valid = false; }
+  if (!valid) return;
+
+  setLoading(true);
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { nombre: firstName, apellidos: lastName } }
+    });
+
+    if (error) {
+      if (error.message.includes('already registered') || error.message.includes('already exists')) {
+        document.getElementById('emailError').textContent = 'Este correo ya tiene una cuenta.';
+        showFieldError('email', 'emailError');
+        showAuthMessage('Este correo electrónico ya está registrado.', 'error');
+      } else {
+        showAuthMessage(error.message, 'error');
+      }
+      return;
+    }
+
+    // Confirmación de email desactivada → sesión inmediata
+    if (data.session) {
+      window.location.href = '/pages/dashboard.html';
+    } else {
+      showAuthMessage('¡Cuenta creada! Revisa tu correo para confirmar tu cuenta antes de iniciar sesión.', 'success');
+      document.getElementById('registerForm').reset();
+    }
+  } catch (e) {
+    showAuthMessage('Error de conexión: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+// =============================================
+// RECUPERACIÓN — Paso 1 (pedir link)
+// =============================================
+async function handleRecover(e) {
+  e.preventDefault();
+  clearErrors();
+
+  const email = document.getElementById('email').value.trim();
+  if (!isValidEmail(email)) { showFieldError('email', 'emailError'); return; }
+
+  setLoading(true);
+  try {
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/pages/recover.html'
+    });
+    showAuthMessage('Si el correo está registrado recibirás un enlace en breve. Revisa también la carpeta de spam.', 'success');
+    document.getElementById('recoverForm').reset();
+  } catch (e) {
+    showAuthMessage('Error de conexión: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+// =============================================
+// RECUPERACIÓN — Paso 2 (nueva contraseña)
+// =============================================
+function showResetStep() {
+  const step1 = document.getElementById('recoverStep1');
+  const step2 = document.getElementById('recoverStep2');
+  if (step1) step1.style.display = 'none';
+  if (step2) step2.style.display = 'block';
+
+  const h1 = document.querySelector('.auth-header h1');
+  const p  = document.querySelector('.auth-header p');
+  if (h1) h1.textContent = 'Nueva contraseña';
+  if (p)  p.textContent  = 'Introduce tu nueva contraseña para terminar.';
+}
+
+async function handleResetPassword(e) {
+  e.preventDefault();
+  clearErrors();
+
+  const newPassword        = document.getElementById('newPassword').value;
+  const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+  if (newPassword.length < 6) {
+    showFieldError('newPassword', 'newPasswordError');
+    return;
+  }
+  if (newPassword !== confirmNewPassword) {
+    showFieldError('confirmNewPassword', 'confirmNewPasswordError');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) { showAuthMessage(error.message, 'error'); return; }
+    await supabase.auth.signOut();
+    window.location.href = '/pages/login.html?reset=true';
+  } catch (e) {
+    showAuthMessage('Error de conexión: ' + e.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+// =============================================
+// HELPERS
+// =============================================
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -117,36 +226,41 @@ function showFieldError(inputId, errorId) {
 }
 
 function clearErrors() {
-  document.querySelectorAll('.form-group input').forEach(input => {
-    input.classList.remove('error');
-  });
-  document.querySelectorAll('.form-error').forEach(err => {
-    err.classList.remove('show');
-  });
+  document.querySelectorAll('.form-group input').forEach(i => i.classList.remove('error'));
+  document.querySelectorAll('.form-error').forEach(e => e.classList.remove('show'));
 }
 
 function showAuthMessage(text, type) {
   const msg = document.getElementById('authMessage');
   if (!msg) return;
   msg.textContent = text;
-  msg.className = 'auth-message show ' + type;
+  msg.className   = 'auth-message show ' + type;
 }
 
 function showUrlMessage() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('registered') === 'true') {
-    showAuthMessage('Cuenta creada correctamente. Ahora puedes iniciar sesión.', 'success');
-  }
-  if (params.get('logout') === 'true') {
-    showAuthMessage('Has cerrado sesión correctamente.', 'success');
-  }
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('registered') === 'true') showAuthMessage('¡Cuenta creada correctamente! Ahora puedes iniciar sesión.', 'success');
+  if (p.get('logout')     === 'true') showAuthMessage('Has cerrado sesión correctamente.', 'success');
+  if (p.get('reset')      === 'true') showAuthMessage('Contraseña actualizada. Inicia sesión con tu nueva contraseña.', 'success');
+}
+
+function setLoading(isLoading) {
+  document.querySelectorAll('button[type="submit"]').forEach(btn => {
+    btn.disabled = isLoading;
+    if (isLoading) {
+      btn.dataset.original = btn.textContent;
+      btn.textContent = 'Cargando...';
+    } else if (btn.dataset.original) {
+      btn.textContent = btn.dataset.original;
+    }
+  });
 }
 
 function showToast(message, type = '') {
   const toast = document.getElementById('toast');
   if (!toast) return;
   toast.textContent = message;
-  toast.className = 'toast show';
+  toast.className   = 'toast show';
   if (type) toast.classList.add('toast-' + type);
   setTimeout(() => { toast.classList.remove('show'); }, 3500);
 }
